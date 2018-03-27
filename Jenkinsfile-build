@@ -1,0 +1,79 @@
+#!/usr/bin/env groovy
+pipeline {
+    agent any
+    environment {
+        PATH = "/usr/local/git/bin:/usr/local/bin/:$PATH"
+        DOCKER_REGISTRY_HOST = "nexus.jwsmed.com:5000/repository/jarvis-docker"
+        SERVICE_MODULE_DIR = "user-service"
+        TASK_MODULE_DIR = "user-task"
+    }
+    tools {
+        maven 'maven'
+    }
+    stages {
+        stage('Initialize version number') {
+            steps {
+                script {
+                    def pom = readMavenPom file: 'pom.xml'
+                    env.BUILD_PACKAGE_VERSION = pom.version.replace("-SNAPSHOT", "." + env.BUILD_NUMBER)
+                }
+                echo "Build version: ${env.BUILD_PACKAGE_VERSION}"
+            }
+        }
+        stage('Maven Build') {
+            steps {
+                sh "mvn versions:set -DnewVersion=${env.BUILD_PACKAGE_VERSION}"
+                sh "mvn -DskipTests clean package"
+            }
+        }
+        stage('Build service docker image') {
+            steps {
+                dir("${env.SERVICE_MODULE_DIR}") {
+                    script {
+                        def pom = readMavenPom file: 'pom.xml'
+                        env.DOCKER_PACKAGE_NAME = pom.artifactId
+                        env.PACKAGE_FILE_NAME = "${env.DOCKER_PACKAGE_NAME}-${env.BUILD_PACKAGE_VERSION}.jar"
+                        env.DOCKER_IMAGE_TAG = "${env.DOCKER_REGISTRY_HOST}/${env.DOCKER_PACKAGE_NAME}:${env.BUILD_PACKAGE_VERSION}"
+                        env.DOCKER_LAST_IMAGE_TAG = "${env.DOCKER_REGISTRY_HOST}/${env.DOCKER_PACKAGE_NAME}:latest"
+                    }
+                    sh "sed -i 's,BUILD_PACKAGE_FILE_NAME,${env.PACKAGE_FILE_NAME},g' Dockerfile"
+                    sh "docker build -t ${env.DOCKER_IMAGE_TAG} -f Dockerfile . "
+                    sh "docker push ${env.DOCKER_IMAGE_TAG}"
+                    sh "docker tag ${env.DOCKER_IMAGE_TAG} ${env.DOCKER_LAST_IMAGE_TAG}"
+                    sh "docker push ${env.DOCKER_LAST_IMAGE_TAG}"
+                    sh "docker rmi ${env.DOCKER_IMAGE_TAG}"
+                }
+            }
+        }
+        stage('Build task docker image') {
+            steps {
+                dir("${env.TASK_MODULE_DIR}") {
+                    script {
+                        def pom = readMavenPom file: 'pom.xml'
+                        env.DOCKER_PACKAGE_NAME = pom.artifactId
+                        env.PACKAGE_FILE_NAME = "${env.DOCKER_PACKAGE_NAME}-${env.BUILD_PACKAGE_VERSION}.jar"
+                        env.DOCKER_IMAGE_TAG = "${env.DOCKER_REGISTRY_HOST}/${env.DOCKER_PACKAGE_NAME}:${env.BUILD_PACKAGE_VERSION}"
+                        env.DOCKER_LAST_IMAGE_TAG = "${env.DOCKER_REGISTRY_HOST}/${env.DOCKER_PACKAGE_NAME}:latest"
+                    }
+                    sh "sed -i 's,BUILD_PACKAGE_FILE_NAME,${env.PACKAGE_FILE_NAME},g' Dockerfile"
+                    sh "docker build -t ${env.DOCKER_IMAGE_TAG} -f Dockerfile . "
+                    sh "docker push ${env.DOCKER_IMAGE_TAG}"
+                    sh "docker tag ${env.DOCKER_IMAGE_TAG} ${env.DOCKER_LAST_IMAGE_TAG}"
+                    sh "docker push ${env.DOCKER_LAST_IMAGE_TAG}"
+                    sh "docker rmi ${env.DOCKER_IMAGE_TAG}"
+                }
+            }
+        }
+        stage('Tag source code') {
+            steps {
+                sh "git tag ${env.BUILD_PACKAGE_VERSION}"
+                sh "git push origin ${env.BUILD_PACKAGE_VERSION}"
+            }
+        }
+        stage('Clean docker unused images') {
+            steps {
+                sh "docker image prune -f"
+            }
+        }
+    }
+}

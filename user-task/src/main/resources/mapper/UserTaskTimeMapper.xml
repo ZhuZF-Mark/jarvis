@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jarvis.user.mapper.UserTaskTimeMapper">
+
+    <select id="findLastUpdateTime" resultType="Date">
+        SELECT last_update_time FROM user_task_time WHERE task_type = 'user_task'
+    </select>
+
+    <update id="updateLastUpdateTime" parameterType="Date">
+
+        UPDATE user_task_time
+        SET last_update_time = #{lastUpdateTime}
+        WHERE task_type = 'user_task'
+    </update>
+
+
+</mapper>

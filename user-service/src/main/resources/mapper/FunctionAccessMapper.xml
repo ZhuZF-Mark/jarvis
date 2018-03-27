@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jarvis.user.mapper.FunctionAccessMapper">
+    <resultMap id="functionAccessMap" type="com.jarvis.user.Dto.FunctionAccessDto">
+        <result column="function_code" property="functionCode"/>
+        <result column="function_name" property="functionName"/>
+        <collection property="accessExpr" javaType="ArrayList" ofType="String">
+            <result column="access_expr" property="accessExpr"/>
+        </collection>
+    </resultMap>
+    <select id="findUserModuleFunctionAccess" resultMap="functionAccessMap" >
+    SELECT
+	a.function_code,a.function_name, da.access_expr
+    FROM
+	(
+		SELECT
+			ura.user_id,
+			fa.role_id,
+			fa.id function_id,
+			fa.module_id,
+			fa.function_code,
+			fa.function_name
+		FROM
+			user_role_assignment ura
+		JOIN (
+			SELECT
+				fa.role_id,
+				fp.*
+			FROM
+				function_access fa
+			LEFT JOIN function_point fp ON fa.function_id = fp.id
+			WHERE
+				fp.enabled = 'y'
+		) fa ON ura.role_id = fa.role_id
+		WHERE
+		(from_date <![CDATA[<NOW()]]>
+		AND end_date <![CDATA[>NOW()]]>)
+		OR unbound='y'
+		AND ura.enabled = 'y'
+		AND ura.user_id = #{userId}
+		AND fa.module_id = #{moduleId}
+	) a
+    LEFT JOIN data_access da ON a.function_id = da.function_id
+    </select>
+</mapper>

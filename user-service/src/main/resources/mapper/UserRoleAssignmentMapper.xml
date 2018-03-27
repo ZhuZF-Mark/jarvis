@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jarvis.user.mapper.UserRoleAssignmentMapper">
+    <select id="findUserOrgRoleList" resultType="com.jarvis.user.Dto.UserOrgRoleDto">
+        SELECT
+            u.id   user_id,
+            u.username,
+            ou.org_id,
+            ou.org_name,
+            ou.org_type,
+            tmp.id role_id,
+            tmp.NAME,
+            tmp.org_ref_id,
+            tmp.from_date,
+            tmp.end_date,
+            tmp.unbound
+        FROM
+            (
+                SELECT
+                    ou.user_id,
+                    ou.org_ref_id,
+                    orf.*
+                FROM
+                    org_user ou
+                    JOIN organization_reference orf ON ou.org_ref_id = orf.id
+                WHERE
+                    ou.enabled = 'y'
+            ) ou
+            LEFT JOIN `user` u ON u.id = ou.user_id
+            RIGHT JOIN (
+                           SELECT
+                               ura.user_id,
+                               ura.from_date,
+                               ura.end_date,
+                               ura.unbound,
+                               ura.org_ref_id org_ref_id1,
+                               ur.*
+                           FROM
+                               user_role_assignment ura
+                               JOIN user_role ur ON ura.role_id = ur.id
+                           WHERE
+                               ura.enabled = 'y'
+                       ) tmp ON ou.org_ref_id = tmp.org_ref_id1
+        WHERE
+            u.id = #{userId}
+            AND u.enabled = 'y'
+    </select>
+    <delete id="deleteByUserId" parameterType="long">
+        delete from user_role_assignment where user_id=#{userId}
+    </delete>
+</mapper>

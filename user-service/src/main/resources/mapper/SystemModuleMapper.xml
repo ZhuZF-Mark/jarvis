@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jarvis.user.mapper.SystemModuleMapper">
+<resultMap id="SystemModuleMap" type="com.jarvis.user.Dto.ModuleFunctionDto" >
+    <id column="id" property="id"/>
+    <result column="module_name" property="moduleName"/>
+    <result column="module_code" property="moduleCode"/>
+    <result column="callback_url" property="callbackUrl"/>
+    <result column="memo" property="memo"/>
+    <collection property="functionPointList" javaType="ArrayList" ofType="com.jarvis.user.Dto.FunctionPointDto">
+        <id column="function_id" property="id"/>
+        <result column="module_id" property="moduleId"/>
+        <result column="function_name" property="functionName"/>
+        <result column="function_code" property="functionCode"/>
+    </collection>
+    </resultMap>
+    <!--查询所有模块下的功能点-->
+    <select id="findAllModuleFunction" resultMap="SystemModuleMap">
+    select sm.*,fa.id  function_id ,fa.module_id ,fa.function_name,fa.function_code from system_module sm LEFT JOIN function_point fa on sm.id=fa.module_id
+    </select>
+</mapper>

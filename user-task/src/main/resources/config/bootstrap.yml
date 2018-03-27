@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: user-task
+  cloud:
+    config:
+      uri: http://localhost:8761/config
+      failFast: false

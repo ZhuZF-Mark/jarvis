@@ -1,0 +1,158 @@
+@startuml
+' uncomment the line below if you're using computer with a retina display
+' skinparam dpi 300
+!define Table(name,desc) class name as "desc" << (T,#FFAAAA) >>
+' we use bold for primary key
+' green color for unique
+' and underscore for not_null
+!define primary_key(x) <b>x</b>
+!define unique(x) <color:green>x</color>
+!define not_null(x) <u>x</u>
+' other tags available:
+' <i></i>
+' <back:COLOR></color>, where color is a color name or html color code
+' (#FFAACC)
+' see: http://plantuml.com/classes.html#More
+hide methods
+hide stereotypes
+
+' entities
+
+Table(user, "user") {
+    primary_key(id) bigint id
+    --
+    username varchar(20) 用户名
+    --
+    real_name varchar(20) 真实姓名
+    --
+    mobile varchar(20) 用户手机
+    --
+    enabled char(1) 是否有效
+    --
+    memo varchar(255) 备注
+}
+
+Table(org_user, "org_user") {
+    primary_key(id) bigint id
+    --
+    user_id bigint 用户id
+    --
+    org_ref_id bigint 机构关联id
+    --
+    default_org char(1) 默认登入机构
+    --
+    enabled char(1) 是否有效
+}
+
+Table(organization_reference, "organization_reference") {
+    primary_key(id) bigint id
+    --
+    group_id bigint 集团id
+    __
+    group_name varchar(50) 集团名称
+    --
+    org_id bigint 机构id
+    --
+    org_name varchar(50) 机构名称
+    --
+    org_type varchar(20) 机构类型
+    ..
+    AGENCY, SUPPLIER
+}
+
+Table(user_role, "user_role") {
+    primary_key(id) bigint id
+    --
+    name varchar(20) 角色名
+    --
+    global_role char(1) 是否全局角色
+    --
+    org_ref_id bigint 关联机构id
+    --
+    enabled char(1) 是否有效
+    --
+    memo varchar(255) 备注
+}
+
+Table(user_role_assignment, "user_role_assignment") {
+    primary_key(id) bigint id
+    --
+    user_id bigint 用户id
+    --
+    org_user_id bigint 机构用户id
+    --
+    role_id bigint 角色id
+    --
+    org_ref_id bigint 关联机构id
+    --
+    from_date timestamp 开始日期
+    --
+    end_date timestamp 结束日期
+    --
+    enabled char(1) 是否有效
+    --
+    unbound char(1) 无期限
+}
+
+Table(data_access, "data_access") {
+    primary_key(id) bigint id
+    --
+    function_id bigint 功能点id
+    --
+    access_expr varchar(255) 权限表达式
+    ..
+    product.query.findByCode,
+    product.command.updateCode,
+    ...
+}
+
+Table(function_access, "function_access") {
+    primary_key(id) bigint id
+    --
+    role_id bigint 角色id
+    --
+    module_id bigint 模块id
+    --
+    function_id bigint 功能id
+}
+
+Table(system_module, "system_module") {
+    primary_key(id) bigint id
+    --
+    module_name varchar(20) 模块名称
+    --
+    module_code varchar(20) 模块编号
+    --
+    callback_url varchar(255) 登入成功后回调地址
+    --
+    enabled char(1) 是否有效
+    --
+    memo varchar(255) 备注
+}
+
+Table(function_point, "function_point") {
+    primary_key(id) bigint id
+    --
+    module_id bigint(20) 模块id
+    --
+    function_name varchar(20) 功能名
+    --
+    function_code varchar(60) 功能编号
+    --
+    enabled char(1) 是否有效
+}
+
+
+user "1" --> "0..n" org_user : "机构用户"
+organization_reference "1" --> "0..n" org_user : "机构关联用户"
+
+org_user "1" --> "0..n" user_role_assignment : "用户的角色配置"
+user_role_assignment "n" --> "1" user_role : "分配的角色"
+
+
+user_role "1" --> "0..n" function_access: "角色的功能访问权限"
+
+system_module "1" --> "0..n" function_point: "模块下的功能点"
+function_point "1" --> "0..n" data_access : "功能对应的数据访问权限"
+
+@enduml

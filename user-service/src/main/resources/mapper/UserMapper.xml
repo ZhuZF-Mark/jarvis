@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jarvis.user.mapper.UserMapper">
+    <sql id="findByParamsSql">
+        from user u left JOIN org_user ou on u.id=ou.user_id where u.enabled='y'
+        <if test="userListQuery.orgRefId!=null">
+            AND ou.org_ref_id=#{userListQuery.orgRefId}
+        </if>
+        <if test="userListQuery.userName!=null and userListQuery.userName!=''">
+            AND  u.username LIKE CONCAT('%', #{userListQuery.userName}, '%')
+        </if>
+        <if test="userListQuery.mobile!=null and userListQuery.mobile!=''">
+            AND u.mobile LIKE LIKE CONCAT('%', #{userListQuery.mobile}, '%')
+        </if>
+        ORDER BY u.created_time DESC
+    </sql>
+    <!--分页查询用户信息-->
+    <select id="findByParams" resultType="com.jarvis.user.entity.User">
+        select u.id,u.username,u.mobile,u.real_name,u.created_time,u.updated_time,u.memo
+        <include refid="findByParamsSql"/>
+        limit #{start} ,#{userListQuery.pageSize}
+    </select>
+    <select id="countByParams" resultType="long">
+        select  COUNT(u.id)
+        <include refid="findByParamsSql"/>
+    </select>
+</mapper>

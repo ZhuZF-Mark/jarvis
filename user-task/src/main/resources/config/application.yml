@@ -1,0 +1,35 @@
+
+logging:
+  config: classpath:config/logback-dev.xml
+
+spring:
+  application:
+    name: user-task
+  datasource:
+    driverClassName: com.mysql.jdbc.Driver
+    url: jdbc:mysql://47.94.92.140:3306/jws_user?useUnicode=true&characterEncoding=UTF-8
+    username: jarvis_admin
+    password: Quanli123
+    testOnBorrow: true
+    validationQuery: SELECT 1
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate.ddl-auto: update
+    show-sql: true
+
+user:
+  task:
+    userDatasource:
+     driverClassName: com.mysql.jdbc.Driver
+     url: jdbc:mysql://47.94.92.140:3306/jarvis_prod?useUnicode=true&characterEncoding=UTF-8
+     username: jarvis_admin
+     password: Quanli123
+
+
+
+
+mybatis:
+  mapper-locations: mapper/*.xml
+  type-aliases-package: com.jarvis.user.entity,com.jarvis.user.dto
+  configuration:
+    map-underscore-to-camel-case: true

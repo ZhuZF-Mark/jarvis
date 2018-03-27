@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jarvis.user.mapper.UserRoleMapper">
+    <!--分页查询-->
+    <select id="findOrgUser" resultType="com.jarvis.user.Dto.OrgRoleDto">
+            SELECT
+            ur.*, orf.group_id,
+            orf.group_name,
+            orf.org_id,
+            orf.org_name,
+            orf.org_type
+          <include refid="pageselect"/>
+        ORDER BY ur.created_time DESC LIMIT #{start}, #{roleListQuery.pageSize}
+    </select>
+    <sql id="pageselect">
+    FROM
+        user_role ur
+    LEFT JOIN organization_reference orf
+    ON ur.org_ref_id = orf.id
+    where ur.enabled='y'
+    <if test="roleListQuery.orgRefId!=null">
+        AND ur.org_ref_id=#{roleListQuery.orgRefId}
+    </if>
+    <if test="roleListQuery.globalRole!=null">
+        <if test="roleListQuery.globalRole==true">
+        AND ur.global_role='y'
+        </if>
+        <if test="roleListQuery.globalRole!=true">
+        AND ur.global_role='n'
+        </if>
+    </if>
+    <if test="roleListQuery.name!=null">
+        AND ur.name LIKE CONCAT('%', #{roleListQuery.name}, '%')
+    </if>
+    </sql>
+    <!--分页查询总数-->
+    <select id="countOrgUser" resultType="Long">
+     select COUNT(ur.id)
+     <include refid="pageselect"/>
+    </select>
+
+    <!--关联机构信息查询角色-->
+    <select id="findRoleDetail" resultType="com.jarvis.user.Dto.RoleDetailDto">
+        select ur.*,orf.group_id,orf.group_name,orf.org_name,orf.org_type from jws_user.user_role ur left join jws_user.organization_reference  orf on ur.org_ref_id=orf.id where ur.id=#{roleId}
+    </select>
+</mapper>

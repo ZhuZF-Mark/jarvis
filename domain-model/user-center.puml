@@ -1,0 +1,14 @@
+@startuml
+Browser -> BusinessModule: 用户首次访问业务系统
+BusinessModule -> Browser: 返回302,跳转UserCenter的LoginForm地址,并且带上当前url和模块code
+
+Browser -> UserCenter: 用户提交登入信息(用户，密码，模块code，之前访问的url)
+UserCenter -> Browser: 认证登入信息后，返回302跳转回业务系统(callback_url),并带上code参数
+Browser -> BusinessModule: 用户访问业务系统，使用code认证
+BusinessModule -> UserCenter: 通过code认证用户
+UserCenter -> BusinessModule: 返回登入用户的token和之前访问的url
+BusinessModule -> Browser: 返回登入用户的token以和之前访问的url
+
+Browser -> BusinessModule: 用户继续访问业务系统
+
+@enduml

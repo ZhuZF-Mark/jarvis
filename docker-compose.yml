@@ -1,0 +1,16 @@
+version: '3'
+services:
+  user-service:
+    image: "$DOCKER_SERVICE_IMAGE_TAG"
+    network_mode: "host"
+    environment:
+      - SPRING_PROFILES_ACTIVE
+    volumes:
+      - /var/log/jarvis/${DOCKER_SERVICE_NAME}:/opt/workspace/log
+  user-task:
+    image: "$DOCKER_TASK_IMAGE_TAG"
+    network_mode: "host"
+    environment:
+      - SPRING_PROFILES_ACTIVE
+    volumes:
+      - /var/log/jarvis/${DOCKER_TASK_NAME}:/opt/workspace/log
