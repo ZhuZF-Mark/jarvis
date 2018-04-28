@@ -1,7 +1,6 @@
 package com.jarvis.user.requestform;
 
-import com.jarvis.user.Dto.FunctionPointDto;
-import com.jarvis.user.entity.FunctionPoint;
+import com.jarvis.user.dto.FunctionPointDto;
 import com.jarvis.user.entity.UserRole;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;

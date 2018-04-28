@@ -1,4 +1,4 @@
-package com.jarvis.user.Dto;
+package com.jarvis.user.dto;
 
 import com.jarvis.user.entity.FunctionPoint;
 import io.swagger.annotations.ApiModel;

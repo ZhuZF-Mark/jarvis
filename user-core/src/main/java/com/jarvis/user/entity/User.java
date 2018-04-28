@@ -43,6 +43,20 @@ public class User extends BaseEntity {
     @Column
     private String memo;
 
+    /**
+     * 微信绑定id
+     */
+    @Column
+    private String wxUnionId;
+
+    public String getWxUnionId() {
+        return wxUnionId;
+    }
+
+    public void setWxUnionId(String wxUnionId) {
+        this.wxUnionId = wxUnionId;
+    }
+
     public String getUsername() {
         return username;
     }

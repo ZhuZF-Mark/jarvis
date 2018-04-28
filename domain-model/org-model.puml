@@ -1,0 +1,269 @@
+@startuml
+' uncomment the line below if you're using computer with a retina display
+' skinparam dpi 300
+!define Table(name,desc) class name as "desc" << (T,#FFAAAA) >>
+' we use bold for primary key
+' green color for unique
+' and underscore for not_null
+!define primary_key(x) <b>x</b>
+!define unique(x) <color:green>x</color>
+!define not_null(x) <u>x</u>
+' other tags available:
+' <i></i>
+' <back:COLOR></color>, where color is a color name or html color code
+' (#FFAACC)
+' see: http://plantuml.com/classes.html#More
+hide methods
+hide stereotypes
+
+' entities
+
+Table(organization, "organization") {
+    
+    primary_key(id) bigint id
+    --
+    parent_id bigint 上级机构
+    --
+    code varchar[20] 机构编码
+    --
+    external_code varchar[50] 外部机构编码
+    --
+    not_null(unique(name)) varchar[100] 机构名称
+    --
+    short_name varchar[100] 机构简称
+    --
+    not_null(legal_person) varchar[60] 企业法人
+    --
+    id_card varchar[60] 法人身份证
+    --
+    tax_rc_code varchar[100] 税务证登记号
+    --
+    credit_code varchar[100] 组织机构代码证号
+    --
+    register_start_date timestamp 注册开始日期
+    --
+    register_end_date timestamp 注册过期日期
+    --
+    business_lic_code varchar[100] 营业执照编号
+    --
+    business_scope lengtext 经营范围
+    --
+    enabled char[1] 是否有效
+    --
+    memo varchar[255] 备注
+}
+
+Table(organization_address, "organization_address") {
+    primary_key(id) bigint id
+    --
+    organization_id bigint 机构id
+    --
+    address_type varchar[10] 地址类型
+    --
+    country_code varchar[10] 国家编码
+    --
+    country varchar[100] 国家
+    --
+    province_code varchar[10] 省份编码
+    --
+    province varchar[100] 省份
+    --
+    city_code varchar[10] 城市编码
+    --
+    city varchar[100] 城市
+    --
+    distinct_code varchar[10] 区编码
+    --
+    distinct varchar[100] 区
+    --
+    address varchar[255] 详细地址
+    --
+    postcode varchar[20] 邮政编码
+    --
+    longitude varchar[100] 经度
+    --
+    latitude varchar[100] 维度
+    --
+    default_address char[1] 是否是默认地址
+    --
+}
+
+organization "1" --> "0..n" organization_address : "机构的地址信息"
+
+Table(organization_contact, "organization_contact") {
+    primary_key(id) bigint id
+    --
+    organization_id bigint 机构id
+    --
+    contacts varchar[60] 联系人
+    --
+    contact_type varchar[10] 联系人类型
+    --
+    mobile_number varchar[20] 手机号码
+    --
+    area_code varchar[20] 固话区号
+    --
+    phone_number varchar[20] 固话号码
+    --
+    email varchar[60] 电子邮箱
+    --
+    fax_code varchar[20] 传真区号
+    --
+    fax_phone varchar[20] 传真电话
+    --
+    default_contact char[1] 是否是默认联系人
+    --
+}
+
+organization "1" --> "0..n" organization_contact : "机构的联系方式"
+
+Table(organization_attachment, "organization_attachment") {
+    primary_key(id) bigint id
+    --
+    organization_id bigint 机构id
+    --
+    name varchar[50] 附件名称
+    --
+    file_path varchar[50] 附件地址
+    --
+    file_type varchar[10] 文件类型
+    --
+    attachment_type varchar[10] 附件类型
+    --
+    memo varchar[255] 备注
+    --
+}
+
+organization "1" --> "0..n" organization_attachment : "机构上传的附件"
+
+Table(bank_account, "bank_account") {
+    primary_key(id) bigint id
+   --
+   organization_id bigint 机构id
+   --
+   account_code varchar[60] 银行账户
+   --
+   account_name varchar[100] 开户名
+   --
+   account_type varchar[10] 账户类型
+   --
+   bank_name varchar[100] 开户行名称
+   --
+   default_account char[1] 默认银行账号
+   --
+}
+
+organization "1" --> "0..n" bank_account : "机构的银行账号"
+
+Table(supplier, "supplier") {
+   primary_key(id) bigint id
+   --
+   organization_id bigint 机构id
+   --
+   type varchar[50] 供应商类型
+   --
+   exclusive char[1] 是否专属
+   --
+   warehouse_type char[1] 是否使用平台仓库
+   --
+   level int 供应商等级
+   --
+   sign_type int 供应商签约类型：0 签约 1未签约
+   --
+   offline_payment char[1] 是否线下佳沃思代收
+   --
+   licence_code varchar[255] 医疗器械经营许可证
+   --
+   licence_scope varchar[255] 经营许可范围
+   --
+   licence_start_date timestamp 经营许可开始日期
+   --
+   licence_end_date timestamp 经营许可到期日期
+   --
+   additional_service varchar[255] 附加服务
+   --
+   service_scope varchar[255] 主要供货/服务地区
+}
+
+supplier "1" --> "1" organization : "供应商的机构信息"
+
+Table(agency, "agency") {
+    primary_key(id) bigint id
+    --
+    organization_id bigint 机构id
+    --
+    inv_title varchar[100] 发票抬头
+    --
+    chair_count int[11] 椅位数
+    --
+    agency_type varchar[10] 客户类型：集采/区采
+    --
+    payment_method varchar[10] 支付方式：精简/全流程
+}
+agency "1" --> "1" organization : "客户的机构信息"
+
+Table(brand, "brand") {
+    primary_key(id) bigint id 品牌id
+    --
+    name varchar[60] 品牌名称
+    --
+    name_en varchar[60] 品牌名称（英文）
+    --
+    code varchar[100] 品牌编码
+    --
+    description text 品牌描述
+    --
+    enabled char[1] 是否有效
+}
+
+Table(supplier_relationship,"supplier_relationship") {
+    primary_key(id) bigint id
+    --
+    agency_id bigint 客户id
+    --
+    supplier_id bigint 供应商id
+    --
+    exclusive char[1] 是否专属关系
+    --
+    account_period char[1] 是否有账期 0：无 1：有
+    --
+    account_description varchar[255] 结账描述
+    --
+    supplier_code varchar[50] 供应商对应客户的编号
+    --
+    agency_code varchar[50] 客户对应供应商的编号
+    --
+    memo varchar[255] 备注
+    --
+    enabled char[1] 是否有效
+}
+
+supplier_relationship "0..n" --> "1" supplier : "供应商和客户的关系"
+
+supplier_relationship "0..n" --> "1" agency : "供应商和客户的关系"
+
+Table(supplier_brand,"supplier_brand") {
+    primary_key(id) bigint id
+    --
+    brand_id bigint 品牌id
+    --
+    supplier_id bigint 供应商id
+    --
+    qualicafication text 资质描述
+    --
+    account_period char[1] 是否有账期 0：无 1：有
+    --
+    account_description varchar[255] 结账描述
+    --
+    supplier_code varchar[50] 供应商对应客户的编号
+    --
+    agency_code varchar[50] 客户对应供应商的编号
+    --
+    memo varchar[255] 备注
+    --
+    enabled char[1] 是否有效
+}
+supplier_brand "0..n" --> "1" brand : "供应商和品牌的关系"
+supplier_brand "0..n" --> "1" supplier : "供应商和品牌的关系"
+
+@enduml

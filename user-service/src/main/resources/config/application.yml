@@ -23,7 +23,7 @@ spring:
     password: F1stForward.com
 mybatis:
   mapper-locations: mapper/*.xml
-  type-aliases-package: com.jarvis.user.entity,com.jarvis.user.Dto
+  type-aliases-package: com.jarvis.user.entity,com.jarvis.user.dto
   configuration:
     map-underscore-to-camel-case: true
     logImpl: org.apache.ibatis.logging.slf4j.Slf4jImpl

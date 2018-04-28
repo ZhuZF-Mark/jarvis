@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.jarvis.user.mapper.OrgUserMapper">
-    <select id="findOrgUserDetail" resultType="OrgUserDetailDto">
+    <select id="findOrgUserDetail" resultType="com.jarvis.user.dto.OrgUserDetailDto">
         select ore.*,ou.id as org_user_id ,ou.default_org from org_user ou  join organization_reference ore on ou.org_ref_id=ore.id where ou.user_id=#{UserId} and ou.enabled='y'
     </select>
     <delete id="deleteByUserId" parameterType="long">

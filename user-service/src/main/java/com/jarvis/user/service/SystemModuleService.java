@@ -1,6 +1,6 @@
 package com.jarvis.user.service;
 
-import com.jarvis.user.Dto.FunctionPointDto;
+import com.jarvis.user.dto.FunctionPointDto;
 import com.jarvis.user.dao.FunctionAccessDao;
 import com.jarvis.user.entity.FunctionAccess;
 import com.jarvis.user.entity.FunctionPoint;

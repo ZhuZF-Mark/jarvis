@@ -1,27 +1,173 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.jarvis.user.mapper.UserMapper">
+    <resultMap id="userMap" type="com.jarvis.user.dto.UserListDto">
+     <id column="id" property="id"></id>
+        <result column="username" property="username"></result>
+        <result column="mobile" property="mobile"></result>
+        <result column="real_name" property="realName"></result>
+        <result column="created_time" property="createdTime"></result>
+        <result column="updated_time" property="updatedTime"></result>
+        <result column="memo" property="memo"></result>
+        <result column="enabled" property="enabled"></result>
+        <collection property="orgRefDtoList"  javaType="ArrayList" ofType="com.jarvis.user.dto.OrgRefDto">
+            <result column="orgRefId" property="orgRefId"></result>
+            <result column="group_id" property="groupId"></result>
+            <result column="group_name" property="groupName"></result>
+            <result column="org_id" property="orgId"></result>
+            <result column="org_name" property="orgName"></result>
+        </collection>
+    </resultMap>
+    <resultMap id="OrgUserMap" type="com.jarvis.user.dto.OrgUserDto">
+        <id column="id" property="id"></id>
+        <result column="username" property="username"></result>
+        <result column="mobile" property="mobile"></result>
+        <result column="real_name" property="realName"></result>
+        <result column="created_time" property="createdTime"></result>
+        <result column="updated_time" property="updatedTime"></result>
+        <result column="memo" property="memo"></result>
+        <result column="enabled" property="enabled"></result>
+        <association property="organizationReference" javaType="com.jarvis.user.entity.OrganizationReference">
+            <result column="groupId" property="groupId"/>
+            <result column="group_id" property="groupName"/>
+            <result column="org_id" property="orgId"/>
+            <result column="org_name" property="orgName"/>
+            <result column="org_type" property="orgType"/>
+        </association>
+    </resultMap>
     <sql id="findByParamsSql">
-        from user u left JOIN org_user ou on u.id=ou.user_id where u.enabled='y'
+        from user u LEFT JOIN (
+        select ou.user_id,ou.created_time,ore.id,ore.org_id,ore.org_name,ou.org_ref_id,ore.group_id,ore.group_name
+        from org_user ou LEFT JOIN
+        organization_reference ore
+        on ou.org_ref_id=ore.id
         <if test="userListQuery.orgRefId!=null">
-            AND ou.org_ref_id=#{userListQuery.orgRefId}
+            AND ore.id=#{userListQuery.orgRefId}
+        </if>
+        )ou
+        ON u.id = ou.user_id where
+        u.id IN (
+        SELECT
+        TEMP.id
+        FROM
+        (
+        SELECT
+        u.id
+        FROM
+        USER u LEFT JOIN org_user ore on u.id=ore.user_id
+        WHERE
+        u.enabled = 'y'
+        <if test="userListQuery.orgRefId!=null">
+            AND ore.org_ref_id=#{userListQuery.orgRefId}
         </if>
         <if test="userListQuery.userName!=null and userListQuery.userName!=''">
             AND  u.username LIKE CONCAT('%', #{userListQuery.userName}, '%')
         </if>
         <if test="userListQuery.mobile!=null and userListQuery.mobile!=''">
-            AND u.mobile LIKE LIKE CONCAT('%', #{userListQuery.mobile}, '%')
+            AND u.mobile LIKE CONCAT('%', #{userListQuery.mobile}, '%')
         </if>
-        ORDER BY u.created_time DESC
+        <if test="userListQuery.realName!=null and userListQuery.realName!=''">
+            AND u.real_name LIKE CONCAT('%', #{userListQuery.realName}, '%')
+        </if>
+        ORDER BY
+        u.created_time DESC
+        limit #{start} ,#{userListQuery.pageSize}
+        ) AS temp
+        )
+        ORDER BY u.created_time DESC,ou.created_time
     </sql>
     <!--分页查询用户信息-->
-    <select id="findByParams" resultType="com.jarvis.user.entity.User">
-        select u.id,u.username,u.mobile,u.real_name,u.created_time,u.updated_time,u.memo
+    <select id="findByParams" resultMap="userMap">
+        select u.id,u.username,u.mobile,u.real_name,u.created_time,u.updated_time,u.memo,u.enabled,ou.id orgRefId,ou.org_id,ou.org_name,ou.group_name,ou.group_id
         <include refid="findByParamsSql"/>
-        limit #{start} ,#{userListQuery.pageSize}
     </select>
     <select id="countByParams" resultType="long">
-        select  COUNT(u.id)
-        <include refid="findByParamsSql"/>
+        select  COUNT(*) from (select u.*
+        from user u LEFT JOIN (
+        select ou.user_id,ore.id,ore.org_id,ore.org_name,ou.org_ref_id,ore.group_id,ore.group_name
+        from org_user ou LEFT JOIN
+        organization_reference ore
+        on ou.org_ref_id=ore.id
+        <if test="userListQuery.orgRefId!=null">
+            AND ore.id=#{userListQuery.orgRefId}
+        </if>
+        )ou
+        ON u.id = ou.user_id where
+        u.id IN (
+        SELECT
+        TEMP.id
+        FROM
+        (
+        SELECT
+        u.id
+        FROM
+        USER u LEFT JOIN org_user ore on u.id=ore.user_id
+        WHERE
+        u.enabled = 'y'
+        <if test="userListQuery.orgRefId!=null">
+            AND ore.org_ref_id=#{userListQuery.orgRefId}
+        </if>
+        <if test="userListQuery.userName!=null and userListQuery.userName!=''">
+            AND  u.username LIKE CONCAT('%', #{userListQuery.userName}, '%')
+        </if>
+        <if test="userListQuery.mobile!=null and userListQuery.mobile!=''">
+            AND u.mobile LIKE CONCAT('%', #{userListQuery.mobile}, '%')
+        </if>
+        <if test="userListQuery.realName!=null and userListQuery.realName!=''">
+            AND u.real_name LIKE CONCAT('%', #{userListQuery.realName}, '%')
+        </if>
+        ORDER BY
+        u.created_time DESC
+        ) AS temp
+        )
+        <if test="userListQuery.orgRefId!=null">
+            AND ou.org_ref_id=#{userListQuery.orgRefId}
+        </if>
+        ORDER BY u.created_time DESC
+        ) aa
+    </select>
+    <select id="queryById" parameterType="long" resultType="com.jarvis.user.entity.User">
+        select * from USER  where id=#{userId}
+    </select>
+    <select id="findByUnionId" resultType="com.jarvis.user.entity.User" parameterType="String">
+       select * from user where wx_union_id=#{unionId} and enabled='y'
+    </select>
+
+    <update id="updateUserWxUnionId" parameterType="com.jarvis.user.requestform.WxBindForm">
+        update user set wx_union_id=#{unionId} where mobile=#{mobile} and password=#{password}
+    </update>
+    <select id="selectOrgUserByMobile" resultMap="OrgUserMap">
+        SELECT
+            tmp.*,ore.*
+        FROM
+            organization_reference ore
+            JOIN (
+                     SELECT
+                         ou.org_ref_id,
+                         u.*
+                     FROM
+                     user u
+                      LEFT JOIN org_user ou ON u.id = ou.user_id
+                                                 WHERE
+                                                 u.mobile = #{mobile}
+                     AND u.password=#{password} And u.enabled='y'
+                 ) tmp on ore.id=tmp.org_ref_id where ore.org_id=#{agencyId}
+    </select>
+    <select id="selectOrgUserByUnionId" resultMap="OrgUserMap">
+        SELECT
+        tmp.*,ore.*
+        FROM
+        organization_reference ore
+        JOIN (
+        SELECT
+        ou.org_ref_id,
+        u.*
+        FROM
+        user u
+        LEFT JOIN org_user ou ON u.id = ou.user_id
+        WHERE
+        u.wx_union_id = #{unionId}
+         And u.enabled='y'
+        ) tmp on ore.id=tmp.org_ref_id where ore.org_id=#{agencyId}
     </select>
 </mapper>

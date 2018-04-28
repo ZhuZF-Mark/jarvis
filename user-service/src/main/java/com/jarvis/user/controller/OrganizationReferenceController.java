@@ -1,6 +1,5 @@
 package com.jarvis.user.controller;
 
-import com.jarvis.user.dao.OrganizationReferenceDao;
 import com.jarvis.user.entity.OrganizationReference;
 import com.jarvis.user.mapper.OrganizationReferenceMapper;
 import io.swagger.annotations.Api;

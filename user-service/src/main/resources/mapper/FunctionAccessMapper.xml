@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.jarvis.user.mapper.FunctionAccessMapper">
-    <resultMap id="functionAccessMap" type="com.jarvis.user.Dto.FunctionAccessDto">
+    <resultMap id="functionAccessMap" type="com.jarvis.user.dto.FunctionAccessDto">
         <result column="function_code" property="functionCode"/>
         <result column="function_name" property="functionName"/>
         <collection property="accessExpr" javaType="ArrayList" ofType="String">
@@ -28,17 +28,19 @@
 				fp.*
 			FROM
 				function_access fa
-			LEFT JOIN function_point fp ON fa.function_id = fp.id
+			LEFT JOIN function_point fp ON fa.function_id = fp.id LEFT JOIN user_role ur on fa.role_id=ur.id
 			WHERE
-				fp.enabled = 'y'
+				fp.enabled = 'y' and ur.enabled='y'
+				<if test="moduleId !=null">
+				and fa.module_id=#{moduleId}
+				</if>
 		) fa ON ura.role_id = fa.role_id
 		WHERE
-		(from_date <![CDATA[<NOW()]]>
+		((from_date <![CDATA[<NOW()]]>
 		AND end_date <![CDATA[>NOW()]]>)
-		OR unbound='y'
+		OR unbound='y')
 		AND ura.enabled = 'y'
 		AND ura.user_id = #{userId}
-		AND fa.module_id = #{moduleId}
 	) a
     LEFT JOIN data_access da ON a.function_id = da.function_id
     </select>

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.jarvis.user.mapper.SystemModuleMapper">
-<resultMap id="SystemModuleMap" type="com.jarvis.user.Dto.ModuleFunctionDto" >
+<resultMap id="SystemModuleMap" type="com.jarvis.user.dto.ModuleFunctionDto" >
     <id column="id" property="id"/>
     <result column="module_name" property="moduleName"/>
     <result column="module_code" property="moduleCode"/>
     <result column="callback_url" property="callbackUrl"/>
     <result column="memo" property="memo"/>
-    <collection property="functionPointList" javaType="ArrayList" ofType="com.jarvis.user.Dto.FunctionPointDto">
+    <collection property="functionPointList" javaType="ArrayList" ofType="com.jarvis.user.dto.FunctionPointDto">
         <id column="function_id" property="id"/>
         <result column="module_id" property="moduleId"/>
         <result column="function_name" property="functionName"/>

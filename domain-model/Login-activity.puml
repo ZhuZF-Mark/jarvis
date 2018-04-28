@@ -1,0 +1,12 @@
+@startuml
+Browser -> UserCenter: 登录提交手机号和密码
+UserCenter -> Browser: 返回唯一标识code
+
+Browser -> BusinessModule:访问业务系统接口带上code
+BusinessModule -> UserCenter: 带上code参数,获取token(可能是多个机构的)
+UserCenter -> BusinessModule: 返回token给业务系统接口
+BusinessModule ->Browser:返回到页面
+
+Browser -> BusinessModule: 用户继续访问业务系统
+
+@enduml

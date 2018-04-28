@@ -6,6 +6,43 @@
        <if test="orgName!=null and orgName!=''">
            AND org_name LIKE CONCAT('%', #{orgName}, '%')
        </if>
+       group by id DESC
        limit 20
    </select>
+
+    <select id="findByUserMobile" resultType="com.jarvis.user.entity.OrganizationReference">
+   SELECT
+   ore.*
+	FROM
+		organization_reference ore
+	 JOIN (
+		SELECT
+			ou.org_ref_id,
+			u.id
+		FROM
+			`user` u
+		LEFT JOIN org_user ou ON u.id = ou.user_id
+		WHERE
+			u.mobile = #{mobile}
+			AND u.password=#{password} AND u.enabled='y'
+	) tmp on ore.id=tmp.org_ref_id
+    </select>
+
+
+	<select id="findByWxUnionId" resultType="com.jarvis.user.entity.OrganizationReference">
+		SELECT
+		ore.*
+		FROM
+		organization_reference ore
+		JOIN (
+		SELECT
+		ou.org_ref_id,
+		u.id
+		FROM
+		`user` u
+		LEFT JOIN org_user ou ON u.id = ou.user_id
+		WHERE
+		u.wx_union_id = #{unionId} AND u.enabled='y'
+		) tmp on ore.id=tmp.org_ref_id
+	</select>
 </mapper>

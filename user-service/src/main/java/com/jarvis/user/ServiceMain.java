@@ -47,8 +47,8 @@ public class ServiceMain {
 
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
-                .title("inventory-rest")
-                .description("jarvis inventory rest service")
+                .title("user-rest")
+                .description("jarvis user rest service")
                 .version("v1.0")
                 .build();
     }

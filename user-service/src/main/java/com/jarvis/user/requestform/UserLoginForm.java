@@ -3,30 +3,23 @@ package com.jarvis.user.requestform;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 
+import java.io.Serializable;
+
 /**
  * 用户登陆提交表单
  * Created by ZZF on 2018/3/13.
  */
 @ApiModel
-public class UserLoginForm {
-    @ApiModelProperty("用户名")
+public class UserLoginForm implements Serializable{
+    private static final long serialVersionUID =1L;
+    @ApiModelProperty("手机号")
     private String username;
     @ApiModelProperty("密码")
     private String password;
     @ApiModelProperty("模块号")
     private String moduleCode;
-    @ApiModelProperty("当前url")
-    private String url;
-    @ApiModelProperty("机构关联id")
-    private Long orgRefId;
-
-    public Long getOrgRefId() {
-        return orgRefId;
-    }
-
-    public void setOrgRefId(Long orgRefId) {
-        this.orgRefId = orgRefId;
-    }
+    @ApiModelProperty("回调业务系统地址")
+    private String callbackUrl;
 
     public String getUsername() {
         return username;
@@ -52,11 +45,11 @@ public class UserLoginForm {
         this.moduleCode = moduleCode;
     }
 
-    public String getUrl() {
-        return url;
+    public String getCallbackUrl() {
+        return callbackUrl;
     }
 
-    public void setUrl(String url) {
-        this.url = url;
+    public void setCallbackUrl(String callbackUrl) {
+        this.callbackUrl = callbackUrl;
     }
 }

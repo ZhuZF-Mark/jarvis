@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.jarvis.user.mapper.UserRoleAssignmentMapper">
-    <select id="findUserOrgRoleList" resultType="com.jarvis.user.Dto.UserOrgRoleDto">
+    <select id="findUserOrgRoleList" resultType="com.jarvis.user.dto.UserOrgRoleDto">
         SELECT
             u.id   user_id,
             u.username,
@@ -25,6 +25,7 @@
                     JOIN organization_reference orf ON ou.org_ref_id = orf.id
                 WHERE
                     ou.enabled = 'y'
+                    AND ou.user_id = #{userId}
             ) ou
             LEFT JOIN `user` u ON u.id = ou.user_id
             RIGHT JOIN (
@@ -39,10 +40,10 @@
                                user_role_assignment ura
                                JOIN user_role ur ON ura.role_id = ur.id
                            WHERE
-                               ura.enabled = 'y'
+                               ura.enabled = 'y' and ur.enabled='y' AND ura.user_id =#{userId}
                        ) tmp ON ou.org_ref_id = tmp.org_ref_id1
         WHERE
-            u.id = #{userId}
+            u.id = #{userId}  AND ou.user_id=#{userId} and tmp.user_id=#{userId}
             AND u.enabled = 'y'
     </select>
     <delete id="deleteByUserId" parameterType="long">

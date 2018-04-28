@@ -1,40 +1,36 @@
 package com.jarvis.user.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jarvis.base.dto.PagedResult;
 import com.jarvis.base.exception.BusinessApiException;
 import com.jarvis.base.util.CurrentUserUtil;
-import com.jarvis.user.Dto.OrgUserDetailDto;
+import com.jarvis.user.dto.OrgUserDetailDto;
+import com.jarvis.user.dto.OrgUserDto;
+import com.jarvis.user.dto.UserListDto;
 import com.jarvis.user.constant.ErrorCode;
 import com.jarvis.user.constant.RedisPrefix;
 import com.jarvis.user.dao.*;
-import com.jarvis.user.entity.OrgUser;
 import com.jarvis.user.entity.OrganizationReference;
-import com.jarvis.user.entity.SystemModule;
 import com.jarvis.user.entity.User;
 import com.jarvis.user.mapper.OrgUserMapper;
+import com.jarvis.user.mapper.OrganizationReferenceMapper;
 import com.jarvis.user.mapper.UserMapper;
 import com.jarvis.user.query.UserListQuery;
 import com.jarvis.user.requestform.UserCreateForm;
 import com.jarvis.user.requestform.UserLoginForm;
+import com.jarvis.user.requestform.WxBindForm;
 import com.jarvis.user.service.UserService;
-import com.jarvis.user.util.RegExpTool;
+import com.jarvis.user.util.*;
+import com.jarvis.user.wx.WxAccessToken;
+import com.jarvis.user.wx.WxBaseUserInfo;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import org.apache.commons.lang.StringUtils;
+import org.json.JSONException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -49,136 +45,53 @@ public class UserController {
     @Autowired
     private UserService userService;
     @Autowired
-    private SystemModuleDao systemModuleDao;
-    @Autowired
-    private RedisTemplate<String, String> template;
-    @Autowired
-    private OrganizationReferenceDao organizationReferenceDao;
-    @Autowired
-    private OrgUserDao orgUserDao;
-    @Autowired
-    private ObjectMapper objectMapper;
+    private RedisTemplateUtils template;
     @Autowired
     private OrgUserMapper orgUserMapper;
     @Autowired
     private UserDao userDao;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private OrganizationReferenceMapper organizationReferenceMapper;
+    @Autowired
+    private WXUtil wxUtil;
+
     /**
-     * 用户登陆
+     * 用户登陆，返回code
      *
-     * @param form     登陆提交表单
-     * @param response 返回
+     * @param form 登陆提交表单
      */
-    @RequestMapping(method = RequestMethod.POST, value = "login")
-    @ApiOperation("用户登录")
-    public void login(@RequestBody UserLoginForm form,
-                      HttpServletResponse response) {
-        if (StringUtils.isBlank(form.getUsername())) {
-            throw new BusinessApiException(ErrorCode.PARAM_BLANK, "用户名不能为空");
-        }
-        if (StringUtils.isBlank(form.getPassword())) {
-            throw new BusinessApiException(ErrorCode.PARAM_BLANK, "密码不能为空");
-        }
-        if (StringUtils.isBlank(form.getModuleCode())) {
-            throw new BusinessApiException(ErrorCode.PARAM_BLANK, "模块code不能为空");
-        }
-        if (StringUtils.isBlank(form.getUrl())) {
-            throw new BusinessApiException(ErrorCode.PARAM_BLANK, "当前地址url不能为空");
-        }
-        //登陆验证
-        User user = userService.loginUser(form.getUsername(), form.getPassword());
-        Long agencyId = null;
-        Long groupId = null;
-        //如果没有机构id：1.判断是否只有一个机构，是就直接登陆，否则继续2
-        //                2.判断是否有默认机构，是就以默认机构登陆，否则返回机构列表
-        List<OrgUser> list = orgUserDao.findByUserIdAndEnabled(user.getId(), true);
-        if (form.getOrgRefId() == null || form.getOrgRefId() == 0) {
-            //存在用户机构关联关系
-            //一个用户对应多个机构
-            if (null != list && list.size() > 0) {
-                if (list.size() == 1) {
-                    //该用户只有一个机构信息,直接用该机构信息登入
-                    OrganizationReference ref = organizationReferenceDao.getOne(list.get(0).getOrgRefId());
-                    agencyId = ref.getOrgId();
-                    groupId = ref.getGroupId();
-                } else {
-                    //遍历用户机构关联信息，查询是否含有默认机构
-                    for (OrgUser orgUser : list) {
-                        if (orgUser.getDefaultOrg()) {
-                            OrganizationReference ref = organizationReferenceDao.getOne(list.get(0).getOrgRefId());
-                            agencyId = ref.getOrgId();
-                            groupId = ref.getGroupId();
-                            break;
-                        }
-                    }
-                    //没有默认机构，返回机构列表
-                    if (agencyId == null || groupId == null) {
-                        String responseJSONObject = null;
-                        try {
-                            List<OrgUserDetailDto> list1 = orgUserMapper.findOrgUserDetail(user.getId());
-                            responseJSONObject = objectMapper.writeValueAsString(list1);
-                        } catch (JsonProcessingException e) {
-                            e.printStackTrace();
-                        }
-                        response.setStatus(406);
-                        response.setCharacterEncoding("UTF-8");
-                        response.setContentType("application/json;  charset=utf-8");
-                        PrintWriter out = null;
-                        try {
-                            out = response.getWriter();
-                            out.append(responseJSONObject);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        } finally {
-                            if (out != null) {
-                                out.close();
-                            }
-                        }
-                    }
-
-                }
-            } else {
-                throw new BusinessApiException(ErrorCode.ORG_ERROR, "机构信息异常");
+    @RequestMapping(method = RequestMethod.POST, value = "getLoginCode")
+    @ApiOperation("用户登录获取code")
+    public Map login(@RequestBody UserLoginForm form) {
+        try {
+            if (StringUtils.isBlank(form.getUsername())) {
+                return ResultMap.failResult(null, "手机号不能为空", ErrorCode.PARAM_BLANK);
             }
-        } else {
-            //有机构id:判断机构id是否和用户绑定机构匹配，匹配则用该机构id登陆，不匹配返回机构信息错误
-            // 遍历用户机构关联信息，查询是否含有默认机构
-            for (OrgUser orgUser : list) {
-                if (orgUser.getOrgRefId() == form.getOrgRefId()) {
-                    OrganizationReference ref = organizationReferenceDao.findOne(form.getOrgRefId());
-                    if (null != ref) {
-                        agencyId = ref.getOrgId();
-                        groupId = ref.getGroupId();
-                    }
-                    break;
-                }
+            if (StringUtils.isBlank(form.getPassword())) {
+                return ResultMap.failResult(null, "密码不能为空", ErrorCode.PARAM_BLANK);
             }
-            //未找到匹配的机构
-            if (agencyId == null || groupId == null) {
-                throw new BusinessApiException(ErrorCode.ORG_ERROR, "机构信息异常");
+            if (StringUtils.isBlank(form.getModuleCode())) {
+                return ResultMap.failResult(null, "模块code不能为空", ErrorCode.PARAM_BLANK);
             }
+            if (StringUtils.isBlank(form.getCallbackUrl())) {
+                return ResultMap.failResult(null, "回调地址不能为空", ErrorCode.PARAM_BLANK);
+            }
+            List<User> user = userService.loginUser(form.getUsername(), form.getPassword());
+            if (user == null || user.size() == 0) {
+                return ResultMap.failResult(null, "用户名密码错误", ErrorCode.USER_OR_PASSWORD_ERROR);
+            }
+            //生成唯一code返回给前端
+            String code = "jws" + CodeUtil.getUuidCode();
+            //生成token存储到redis
+            String key = RedisPrefix.REDIS_KEY_PREFIX_TOKEN + code;
+            //将表单信息缓存到redis
+            template.setCacheValueForTime(key, form, 10, TimeUnit.MINUTES);
+            return ResultMap.successResult(code);
+        } catch (Exception e) {
+            return ResultMap.failResult(null, "用户中心系统异常", ErrorCode.SYSTEM_ERROR);
         }
-
-        //登陆成功返回302重定向
-        //根据模块号查询回掉地址
-        SystemModule module = systemModuleDao.findByModuleCode(form.getModuleCode());
-        if (null == module) {
-            throw new BusinessApiException(ErrorCode.PARAM_ERROR, "模块号错误");
-        }
-        //生成唯一code返回给前端
-        String code = String.valueOf(UUID.randomUUID());
-        //生成token存储到redis
-        String key = RedisPrefix.REDIS_KEY_PREFIX_TOKEN + code;
-        String token = CurrentUserUtil.generateToken(user.getId(), user.getUsername(), agencyId, groupId, user.getRealName());
-        template.opsForValue().set(key, token);
-        template.expire(key, 10, TimeUnit.MINUTES);
-        //之前访问url存储到redis
-        String key1 = RedisPrefix.REDIS_KEY_PREFIX_URL + code;
-        template.opsForValue().set(key1, form.getUrl());
-        template.expire(key1, 10, TimeUnit.MINUTES);
-        response.setStatus(302);
-        response.setHeader("Location", module.getCallbackUrl() + "?code=" + code);
     }
 
     /**
@@ -189,13 +102,165 @@ public class UserController {
      */
     @RequestMapping(method = RequestMethod.GET, value = "query/getToken")
     @ApiOperation("code验证返回用户令牌token")
-    public Map getToken(@ApiParam(required = true, name = "code", value = "校验code") @RequestParam("code") String code) {
-        String token = template.opsForValue().get(RedisPrefix.REDIS_KEY_PREFIX_TOKEN + code);
-        String url = template.opsForValue().get(RedisPrefix.REDIS_KEY_PREFIX_URL + code);
-        Map<String, String> resultMap = new HashMap<>();
-        resultMap.put("token", token);
-        resultMap.put("url", url);
-        return resultMap;
+    public Map getToken(@ApiParam(required = true, name = "code", value = "校验code") @RequestParam("code") String code) throws JSONException {
+        //非微信登陆入口
+        if (code.startsWith("jws")) {
+            String key = RedisPrefix.REDIS_KEY_PREFIX_TOKEN + code;
+            UserLoginForm loginForm = (UserLoginForm) template.getCacheValue(key);
+            //查询用户的机构列表
+            List<OrganizationReference> orgList = organizationReferenceMapper.findByUserMobile(loginForm.getUsername(), MD5Utils.getMD5String(loginForm.getPassword()));
+            String token = getToken(orgList, loginForm, code);
+            return ResultMap.successResult(token);
+        } else
+        //微信入口
+        {
+            //获取微信access_token
+            WxAccessToken accessToken = wxUtil.getAccessToken(code);
+            if (accessToken.getOpenid() == null && !accessToken.getErrcode().equals("")) {
+                return ResultMap.failResult(null, accessToken.getErrmsg(), String.valueOf(accessToken.getErrcode()));
+            }
+            //将登陆流水号存入redis缓存
+            template.setCacheValueForTime(code, accessToken, 10, TimeUnit.MINUTES);
+            System.out.println("accessToken:" + accessToken.toString());
+            //获取用户信息
+            WxBaseUserInfo userInfo = wxUtil.getUserInfo(accessToken.getAccess_token(), accessToken.getOpenid());
+            if (userInfo.getOpenid().equals("")) {
+                return ResultMap.failResult(null, userInfo.getErrmsg(), String.valueOf(userInfo.getErrcode()));
+            }
+            System.out.println("userInfo:" + userInfo.toString());
+            //根据unionId查询本系统user
+            List<OrganizationReference> orgList = organizationReferenceMapper.findByWxUnionId(userInfo.getUnionid());
+            String token = getTokenByUnionId(orgList, userInfo.getUnionid(), code);
+            if (token == null) {
+                return ResultMap.failResult(code, "微信未绑定", ErrorCode.WX_NOT_BIND);
+            }
+            return ResultMap.successResult(token);
+        }
+    }
+
+    /**
+     * 绑定微信id
+     *
+     * @param wxBindForm 表单
+     * @return token
+     */
+    @RequestMapping(method = RequestMethod.GET, value = "command/bindWx")
+    @ApiOperation("绑定微信id")
+    public Map bindWxId(@RequestBody WxBindForm wxBindForm) {
+        try {
+            if (StringUtils.isBlank(wxBindForm.getMobile())) {
+                return ResultMap.failResult(null, "手机号不能为空", ErrorCode.PARAM_BLANK);
+            }
+            if (StringUtils.isBlank(wxBindForm.getPassword())) {
+                return ResultMap.failResult(null, "密码不能为空", ErrorCode.PARAM_BLANK);
+            }
+            if (StringUtils.isBlank(wxBindForm.getCode())) {
+                return ResultMap.failResult(null, "登陆流水号不能为空", ErrorCode.PARAM_BLANK);
+            }
+            //绑定用户微信到手机号
+            userMapper.updateUserWxUnionId(wxBindForm);
+            WxAccessToken accessToken = (WxAccessToken) template.getCacheValue(wxBindForm.getCode());
+            WxBaseUserInfo userInfo = wxUtil.getUserInfo(accessToken.getAccess_token(), accessToken.getOpenid());
+            if (userInfo.getOpenid().equals("")) {
+                return ResultMap.failResult(null, userInfo.getErrmsg(), String.valueOf(userInfo.getErrcode()));
+            }
+            //根据unionId查询本系统user
+            List<OrganizationReference> orgList = organizationReferenceMapper.findByWxUnionId(userInfo.getUnionid());
+            String token = getTokenByUnionId(orgList, userInfo.getUnionid(), wxBindForm.getCode());
+            if (token == null) {
+                return ResultMap.failResult(wxBindForm.getCode(), "微信未绑定成功！", ErrorCode.WX_NOT_BIND);
+            }
+            return ResultMap.successResult(token);
+        } catch (Exception e) {
+            return ResultMap.failResult(null, "用户中心系统异常", ErrorCode.SYSTEM_ERROR);
+        }
+    }
+
+    /**
+     * 选择机构登陆
+     */
+    @RequestMapping(method = RequestMethod.GET, value = "query/getAccesstoken")
+    @ApiOperation("获取准确的token")
+    public Map getAccesstoken(@ApiParam(required = true, name = "token", value = "token") @RequestParam("token") String token,
+                              @ApiParam(required = true, name = "agencyId", value = "机构id") @RequestParam("agencyId") Long agencyId) {
+        try {
+      String code =TokenUtil.getCode(token);
+        if(code.startsWith("jws")){
+            String key = RedisPrefix.REDIS_KEY_PREFIX_TOKEN + code;
+            UserLoginForm loginForm = (UserLoginForm) template.getCacheValue(key);
+            //根据手机号，密码，机构，确定一个用户
+          OrgUserDto orgUserDto= userMapper.selectOrgUserByMobile(loginForm.getUsername(), MD5Utils.getMD5String(loginForm.getPassword()),agencyId);
+            token = CurrentUserUtil.generateToken(orgUserDto.getId(),orgUserDto.getUsername(),orgUserDto.getOrganizationReference().getOrgId(),orgUserDto.getOrganizationReference().getGroupId(),orgUserDto.getRealName(),orgUserDto.getMobile());
+            return ResultMap.successResult(token);
+        }else{
+            //根据code去缓存查询微信accessToken
+            WxAccessToken accessToken = (WxAccessToken) template.getCacheValue(code);
+            //根据accessToken查询用户信息
+            WxBaseUserInfo userInfo = wxUtil.getUserInfo(accessToken.getAccess_token(), accessToken.getOpenid());
+            if (userInfo.getOpenid().equals("")) {
+                return ResultMap.failResult(null, userInfo.getErrmsg(), String.valueOf(userInfo.getErrcode()));
+            }
+            OrgUserDto orgUserDto= userMapper.selectOrgUserByUnionId(userInfo.getUnionid(),agencyId);
+            token = CurrentUserUtil.generateToken(orgUserDto.getId(),orgUserDto.getUsername(),orgUserDto.getOrganizationReference().getOrgId(),orgUserDto.getOrganizationReference().getGroupId(),orgUserDto.getRealName(),orgUserDto.getMobile());
+            return ResultMap.successResult(token);
+        }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResultMap.failResult(null, "用户中心系统异常", ErrorCode.SYSTEM_ERROR);
+        }
+    }
+
+    /**
+     * 用户名密码获取token
+     *
+     * @param orgList   机构列表
+     * @param loginForm 登陆表单
+     * @return token
+     */
+    public String getToken(List<OrganizationReference> orgList, UserLoginForm loginForm, String code) {
+        String token = null;
+        if (orgList != null && orgList.size() > 0) {
+            //多个机构，返回机构列表
+            if (orgList.size() > 1) {
+                List<Long> agencyIds = new ArrayList<>();
+                for (OrganizationReference organizationReference : orgList) {
+                    agencyIds.add(organizationReference.getOrgId());
+                }
+                //生成token
+                token = TokenUtil.generateToken(agencyIds.toString(), loginForm.getUsername(), code);
+            } else {
+                //返回单个机构的token
+                List<User> user = userService.loginUser(loginForm.getUsername(), loginForm.getPassword());
+                token = CurrentUserUtil.generateToken(user.get(0).getId(), user.get(0).getUsername(), orgList.get(0).getOrgId(), orgList.get(0).getGroupId(), user.get(0).getRealName(), user.get(0).getMobile());
+            }
+        }
+        return token;
+    }
+
+    /**
+     * unionID密码获取token
+     *
+     * @param orgList 机构列表
+     * @return token
+     */
+    public String getTokenByUnionId(List<OrganizationReference> orgList, String unionId, String code) {
+        String token = null;
+        List<User> userlist = userMapper.findByUnionId(unionId);
+        if (orgList != null && orgList.size() > 0) {
+            //多个机构，返回机构列表
+            if (orgList.size() > 1) {
+                List<Long> agencyIds = new ArrayList<>();
+                for (OrganizationReference organizationReference : orgList) {
+                    agencyIds.add(organizationReference.getOrgId());
+                }
+                //生成token
+                token = TokenUtil.generateToken(agencyIds.toString(), userlist.get(0).getMobile(), code);
+            } else {
+                //返回单个机构的token
+                token = CurrentUserUtil.generateToken(userlist.get(0).getId(), userlist.get(0).getUsername(), orgList.get(0).getOrgId(), orgList.get(0).getGroupId(), userlist.get(0).getRealName(), userlist.get(0).getMobile());
+            }
+        }
+        return token;
     }
 
     /**
@@ -220,6 +285,7 @@ public class UserController {
         validateUserCreateForm(form);
         userService.createUser(form);
     }
+
     /**
      * 编辑用戶
      *
@@ -228,8 +294,8 @@ public class UserController {
     @RequestMapping(method = RequestMethod.POST, value = "command/editUser")
     @ApiOperation("编辑用户")
     public void editUser(@RequestBody UserCreateForm form) {
-        if(form.getId()==null){
-            throw new BusinessApiException(ErrorCode.PARAM_BLANK,"用户id不能为空");
+        if (form.getId() == null) {
+            throw new BusinessApiException(ErrorCode.PARAM_BLANK, "用户id不能为空");
         }
         //验证表单信息
         validateUserEditForm(form);
@@ -254,14 +320,15 @@ public class UserController {
         }
         if (StringUtils.isBlank(form.getRealName()))
             throw new BusinessApiException(ErrorCode.PARAM_BLANK, "真实姓名必填");
-        if (null == form.getDefaultOrgId()) {
-            throw new BusinessApiException(ErrorCode.PARAM_BLANK, "默认机构必填");
-        }
-        User user=userDao.findByUsernameAndEnabled(form.getUsername(),true);
-        if(null!=user){
+//        if (null == form.getDefaultOrgId()) {
+//            throw new BusinessApiException(ErrorCode.PARAM_BLANK, "默认机构必填");
+//        }
+        User user = userDao.findByUsernameAndEnabled(form.getUsername(), true);
+        if (null != user) {
             throw new BusinessApiException(ErrorCode.PARAM_ERROR, "用户名已存在");
         }
     }
+
     /**
      * 编辑用户表单验证
      *
@@ -278,32 +345,34 @@ public class UserController {
         }
         if (StringUtils.isBlank(form.getRealName()))
             throw new BusinessApiException(ErrorCode.PARAM_BLANK, "真实姓名必填");
-        if (null == form.getDefaultOrgId()) {
-            throw new BusinessApiException(ErrorCode.PARAM_BLANK, "默认机构必填");
-        }
+//        if (null == form.getDefaultOrgId()) {
+//            throw new BusinessApiException(ErrorCode.PARAM_BLANK, "默认机构必填");
+//        }
     }
+
     /**
      * 查询用户列表
      *
-     * @param userListQuery    查询表单
+     * @param userListQuery 查询表单
      * @return 分页数据
      */
     @RequestMapping(method = RequestMethod.POST, value = "query/queryUserList")
     @ApiOperation("用戶列表")
-    public PagedResult<User> queryUserList(@RequestBody UserListQuery userListQuery) {
-        List<User> userList=userMapper.findByParams(userListQuery,userListQuery.getPageNo()*userListQuery.getPageSize());
-        Long totalCount=userMapper.countByParams(userListQuery);
-        return new PagedResult<>(userList,totalCount,userListQuery.getPageNo(),userListQuery.getPageSize());
+    public PagedResult<UserListDto> queryUserList(@RequestBody UserListQuery userListQuery) {
+        List<UserListDto> userList = userMapper.findByParams(userListQuery, userListQuery.getPageNo() * userListQuery.getPageSize());
+        Long totalCount = userMapper.countByParams(userListQuery);
+        return new PagedResult<>(userList, totalCount, userListQuery.getPageNo(), userListQuery.getPageSize());
     }
 
     /**
      * 查询用户详情
-     * @param userId  用户id
+     *
+     * @param userId 用户id
      * @return 用户表单
      */
     @RequestMapping(method = RequestMethod.GET, value = "query/queryUserDetail")
     @ApiOperation("用戶详情")
-    public UserCreateForm queryUserDetail(@ApiParam(required = true, name = "userId", value = "用户Id") @RequestParam("userId") long userId){
-    return userService.queryUserDetail(userId);
+    public UserCreateForm queryUserDetail(@ApiParam(required = true, name = "userId", value = "用户Id") @RequestParam("userId") long userId) {
+        return userService.queryUserDetail(userId);
     }
 }

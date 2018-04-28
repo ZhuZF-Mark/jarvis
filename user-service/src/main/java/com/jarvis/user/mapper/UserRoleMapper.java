@@ -1,7 +1,7 @@
 package com.jarvis.user.mapper;
 
-import com.jarvis.user.Dto.OrgRoleDto;
-import com.jarvis.user.Dto.RoleDetailDto;
+import com.jarvis.user.dto.OrgRoleDto;
+import com.jarvis.user.dto.RoleDetailDto;
 import com.jarvis.user.query.RoleListQuery;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

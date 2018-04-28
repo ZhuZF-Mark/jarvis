@@ -1,10 +1,8 @@
-package com.jarvis.user.Dto;
+package com.jarvis.user.dto;
 
 
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
 
 import java.io.Serializable;
 import java.util.List;

@@ -2,10 +2,10 @@ package com.jarvis.user.controller;
 
 import com.jarvis.base.dto.PagedResult;
 import com.jarvis.base.exception.BusinessApiException;
-import com.jarvis.user.Dto.FunctionPointDto;
-import com.jarvis.user.Dto.ModuleFunctionDto;
-import com.jarvis.user.Dto.OrgRoleDto;
-import com.jarvis.user.Dto.RoleDetailDto;
+import com.jarvis.user.dto.FunctionPointDto;
+import com.jarvis.user.dto.ModuleFunctionDto;
+import com.jarvis.user.dto.OrgRoleDto;
+import com.jarvis.user.dto.RoleDetailDto;
 import com.jarvis.user.constant.ErrorCode;
 import com.jarvis.user.dao.FunctionAccessDao;
 import com.jarvis.user.dao.OrganizationReferenceDao;
@@ -16,15 +16,12 @@ import com.jarvis.user.entity.UserRole;
 import com.jarvis.user.mapper.SystemModuleMapper;
 import com.jarvis.user.mapper.UserRoleMapper;
 import com.jarvis.user.query.RoleListQuery;
-import com.jarvis.user.requestform.RoleForm;
 import com.jarvis.user.requestform.RoleFunctionForm;
 import com.jarvis.user.service.RoleService;
-import com.jarvis.user.service.SystemModuleService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import org.apache.commons.lang.StringUtils;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -72,7 +69,7 @@ public class RoleController {
     @RequestMapping(method = RequestMethod.GET, value = "query/queryOrgRoleList")
     @ApiOperation("查询机构下的角色列表-包含全局角色")
     public List<UserRole> queryOrgRoleList(@ApiParam(required = true, name = "orgRefId", value = "机构关联id") @RequestParam("orgRefId") Long orgRefId) {
-        return userRoleDao.findByOrgRefIdOrGlobalRole(orgRefId, true);
+        return userRoleDao.findByOrgRefIdOrGlobalRoleAndEnabled(orgRefId, true,true);
     }
 
     /**
@@ -92,14 +89,14 @@ public class RoleController {
 
     /**
      * @param roleId 角色id
-     * @param open   开启-关闭
+     * @param enabled   开启-关闭
      */
     @RequestMapping(method = RequestMethod.GET, value = "query/roleSwitch")
     @ApiOperation("角色开启-关闭")
     public void roleSwitch(@ApiParam(required = true, name = "roleId", value = "角色id") @RequestParam("roleId") Long roleId,
-                           @ApiParam(required = true, name = "open", value = "开启") @RequestParam("open") Boolean open) {
+                           @ApiParam(required = true, name = "enabled", value = "开启") @RequestParam("enabled") Boolean enabled) {
         UserRole role = userRoleDao.findOne(roleId);
-        role.setEnabled(open);
+        role.setEnabled(enabled);
         userRoleDao.save(role);
     }
 

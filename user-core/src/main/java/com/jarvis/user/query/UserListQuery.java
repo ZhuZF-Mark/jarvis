@@ -10,6 +10,8 @@ import io.swagger.annotations.ApiModelProperty;
 public class UserListQuery {
     @ApiModelProperty("用户名")
     private String userName;
+    @ApiModelProperty("真实姓名")
+    private String realName;
     @ApiModelProperty("手机号")
     private String mobile;
     @ApiModelProperty("关联机构id")
@@ -18,6 +20,14 @@ public class UserListQuery {
     private Integer pageNo=0;
     @ApiModelProperty("一页条数")
     private Integer pageSize=10;
+
+    public String getRealName() {
+        return realName;
+    }
+
+    public void setRealName(String realName) {
+        this.realName = realName;
+    }
 
     public Long getOrgRefId() {
         return orgRefId;

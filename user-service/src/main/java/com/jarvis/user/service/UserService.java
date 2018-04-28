@@ -1,8 +1,8 @@
 package com.jarvis.user.service;
 
 import com.jarvis.base.exception.BusinessApiException;
-import com.jarvis.user.Dto.OrgUserDetailDto;
-import com.jarvis.user.Dto.UserOrgRoleDto;
+import com.jarvis.user.dto.OrgUserDetailDto;
+import com.jarvis.user.dto.UserOrgRoleDto;
 import com.jarvis.user.constant.ErrorCode;
 import com.jarvis.user.dao.OrgUserDao;
 import com.jarvis.user.dao.UserDao;
@@ -13,6 +13,7 @@ import com.jarvis.user.entity.User;
 import com.jarvis.user.entity.UserRole;
 import com.jarvis.user.entity.UserRoleAssignment;
 import com.jarvis.user.mapper.OrgUserMapper;
+import com.jarvis.user.mapper.UserMapper;
 import com.jarvis.user.mapper.UserRoleAssignmentMapper;
 import com.jarvis.user.requestform.OrganizationReferenceForm;
 import com.jarvis.user.requestform.UserCreateForm;
@@ -25,7 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * 用户模块业务
@@ -45,6 +45,8 @@ public class UserService {
     private UserRoleDao userRoleDao;
     @Autowired
     private UserRoleAssignmentMapper userRoleAssignmentMapper;
+    @Autowired
+    private UserMapper userMapper;
 
     /**
      * 用户登陆
@@ -53,14 +55,11 @@ public class UserService {
      * @param password 密码
      * @return User user实体
      */
-    public User loginUser(String username, String password) {
+    public List<User> loginUser(String username, String password) {
         //对明文密码进行加密
         String md5Password = MD5Utils.getMD5String(password);
         //根据用户名密码查询用户
-        User user = userDao.findByUsernameAndPasswordAndEnabled(username, md5Password, true);
-        if (null == user) {
-            throw new BusinessApiException(ErrorCode.USER_OR_PASSWORD_ERROR, "用户名或者密码错误");
-        }
+        List<User> user = userDao.findByMobileAndPasswordAndEnabled(username, md5Password, true);
         return user;
     }
 
@@ -86,7 +85,7 @@ public class UserService {
     public UserCreateForm queryUserDetail(Long userId){
         UserCreateForm form=new UserCreateForm();
         //查询用户基本信息
-        User user=userDao.findOne(userId);
+        User user=userMapper.queryById(userId);
         BeanUtils.copyProperties(user,form);
         form.setPassword(null);
         //查询用户的机构列表
@@ -103,19 +102,22 @@ public class UserService {
             //如果是默认机构，返回默认机构id
             if(dto.getDefaultOrg()){
                 form.setDefaultOrgId(dto.getId());
-            }
+             }
             //查询机构下的所有角色
-            List<UserRole> userRoles = userRoleDao.findByOrgRefIdOrGlobalRole(dto.getOrgId(), true);
+            List<UserRole> userRoles = userRoleDao.findByOrgRefIdOrGlobalRoleAndEnabled(dto.getId(), true,true);
             for(UserRole ur:userRoles){
                 UserRoleForm urf=new UserRoleForm();
                 BeanUtils.copyProperties(ur,urf);
                 //比对用户已有的角色和所有的角色，对已有的角色进行标记
-                userOrgRoleDtos.stream().filter(userOrgRoleDto -> userOrgRoleDto.getOrgId().equals(dto.getOrgId())  && userOrgRoleDto.getRoleId().equals(urf.getId())).forEach(userOrgRoleDto -> {
-                    urf.setChecked(true);
-                    urf.setFromDate(userOrgRoleDto.getFromDate());
-                    urf.setEndDate(userOrgRoleDto.getEndDate());
-                    urf.setUnbound(userOrgRoleDto.getUnbound());
-                });
+                   for(UserOrgRoleDto userOrgRoleDto: userOrgRoleDtos) {
+                       if (userOrgRoleDto.getOrgId().equals(dto.getOrgId()) && userOrgRoleDto.getRoleId().equals(ur.getId())) {
+                           urf.setChecked(true);
+                           urf.setFromDate(userOrgRoleDto.getFromDate());
+                           urf.setEndDate(userOrgRoleDto.getEndDate());
+                           urf.setUnbound(userOrgRoleDto.getUnbound());
+                           break;
+                       }
+                   }
                 userRoleFormList.add(urf);
             }
             //添加角色列表到表单
@@ -159,7 +161,7 @@ public class UserService {
             OrgUser ou=new OrgUser();
             ou.setUserId(user.getId());
             ou.setOrgRefId(orf.getId());
-            if(Objects.equals(orf.getOrgId(), form.getDefaultOrgId())){
+            if(orf.getId().equals(form.getDefaultOrgId())){
                 ou.setDefaultOrg(true);
             }else{
                 ou.setDefaultOrg(false);
@@ -172,6 +174,9 @@ public class UserService {
                 ura.setUserId(user.getId());
                 ura.setOrgRefId(ou.getOrgRefId());
                 if(!urf.getUnbound()){
+                    if(urf.getFromDate().after(urf.getEndDate())){
+                        throw new BusinessApiException(ErrorCode.PARAM_ERROR,"开始时间不能大于结束时间!");
+                    }
                     ura.setFromDate(urf.getFromDate());
                     ura.setEndDate(urf.getEndDate());
                 }

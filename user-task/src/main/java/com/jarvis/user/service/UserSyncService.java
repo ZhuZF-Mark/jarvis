@@ -5,6 +5,7 @@ import com.jarvis.user.dao.*;
 import com.jarvis.user.dto.AgencyDto;
 import com.jarvis.user.dto.SupplierDto;
 import com.jarvis.user.dto.UserDto;
+import com.jarvis.user.dto.UserRoleDto;
 import com.jarvis.user.entity.*;
 import com.jarvis.user.enums.OrgType;
 import org.apache.tomcat.jdbc.pool.DataSource;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceBuilder;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.RowMapper;
@@ -108,47 +110,63 @@ public class UserSyncService {
 
 
     private void importUserInfo(List<Integer> list) {
-        for (Integer id : list) {
-            String sql = "SELECT " +
-                    "agencyId,suplierId,userId,userPwd,trueName,mobile,useFlg," +
-                    "memo,creator,editor,createdTime,updatedTime,defaultAgency " +
-                    "FROM bus_usermaster WHERE id=:id";
-            RowMapper<UserDto> rowMapper = new BeanPropertyRowMapper<>(UserDto.class);
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", id);
-            UserDto userDto = jdbcTemplate.queryForObject(sql, map, rowMapper);
-            //封装并保存uesr对象，关系表对象，机构对象
-            //1.保存user对象
-            User user = userDao.findByUsername(userDto.getUserId());
-            if (user == null) {
-                user = getUser(userDto);
-            } else {
-                continue;
-            }
 
+        for (Integer id : list) {
             try {
-                //2.机构账号创建机构关系
-                if (userDto.getAgencyId() != null) {
-                    OrganizationReference orgAgency = getOrganizationReference(userDto.getAgencyId());
-                    OrgUser orgUser = saveOrgUser(userDto, user, orgAgency);
-                    getRoleAndSave(userDto, user, orgAgency, orgUser);
-                }
-                //3.供应商账号创建供应商关系
-                if (userDto.getSuplierId() != null) {
-                    OrganizationReference orgSupplier = getOrgReference(userDto.getSuplierId());
-                    OrgUser orgUser = saveOrgUser(userDto, user, orgSupplier);
-                    getRoleAndSave(userDto, user, orgSupplier, orgUser);
-                }
-            } catch (EmptyResultDataAccessException e) {
-                log.error("没有对应集团信息的用户:{}", userDto.getUserId());
+                String sql = "SELECT " +
+                        "agencyId,suplierId,userId,userPwd,trueName,mobile,useFlg," +
+                        "memo,creator,editor,createdTime,updatedTime,defaultAgency " +
+                        "FROM bus_usermaster WHERE id=:id";
+                RowMapper<UserDto> rowMapper = new BeanPropertyRowMapper<>(UserDto.class);
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", id);
+                UserDto userDto = jdbcTemplate.queryForObject(sql, map, rowMapper);
+                //封装并保存uesr对象，关系表对象，机构对象
+                saveUserOrgRole(userDto);
+
+            } catch (DataAccessException e) {
+                log.info("新增或更新用户：{}失败！", id);
             }
 
         }
     }
 
+    private void saveUserOrgRole(UserDto userDto) {
+        //1.保存user对象
+        User user = userDao.findByUsername(userDto.getUserId());
+        if (user == null) {
+            user = new User();
+        }
+
+        user.setUsername(userDto.getUserId());
+        user.setRealName(userDto.getTrueName());
+        user.setPassword(userDto.getUserPwd());
+        user.setMobile(userDto.getMobile());
+        user.setEnabled(userDto.getUseFlg());
+        user.setMemo(userDto.getMemo());
+        user = userDao.save(user);
+
+        try {
+            //2.机构账号创建机构关系
+            if (userDto.getAgencyId() != null) {
+                OrganizationReference orgAgency = getOrganizationReference(userDto.getAgencyId());
+                OrgUser orgUser = saveOrgUser(userDto, user, orgAgency);
+                getRoleAndSave(userDto, user, orgAgency, orgUser);
+            }
+            //3.供应商账号创建供应商关系
+            if (userDto.getSuplierId() != null) {
+                OrganizationReference orgSupplier = getOrgReference(userDto.getSuplierId());
+                OrgUser orgUser = saveOrgUser(userDto, user, orgSupplier);
+                getRoleAndSave(userDto, user, orgSupplier, orgUser);
+            }
+        } catch (EmptyResultDataAccessException e) {
+            log.error("没有对应集团信息的用户:{}", userDto.getUserId());
+        }
+    }
+
     private OrganizationReference getOrgReference(Long suplierId) {
         //3.判断新库是否存在供应商，不存在则创建
-        OrganizationReference orgSupplier = organizationReferenceDao.findByOrgId(suplierId);
+        OrganizationReference orgSupplier = organizationReferenceDao.findByOrgIdAndOrgType(suplierId, OrgType.SUPPLIER);
         if (orgSupplier == null) {
             String sql = "select id,supliersName,supliersShortName,parentsupliersId,supliersCode," +
                     "useFlg from po_supliersmaster where id = :id";
@@ -163,7 +181,7 @@ public class UserSyncService {
 
     private OrganizationReference getOrganizationReference(Long agencyId) {
         //1.判断新库是否存在机构，不存在则创建
-        OrganizationReference orgAgency = organizationReferenceDao.findByOrgId(agencyId);
+        OrganizationReference orgAgency = organizationReferenceDao.findByOrgIdAndOrgType(agencyId, OrgType.AGENCY);
         if (orgAgency == null) {
             String sql = "select id,parentId,groupId,agencyCode,agencyName," +
                     "agencyShortName,useFlg from bus_agencymaster where id = :id";
@@ -201,36 +219,39 @@ public class UserSyncService {
         Map<String, Object> map = new HashMap<>();
         map.put("roleId", roleId);
         String roleName = jdbcTemplate.queryForObject(sql, map, String.class);
-        UserRole userRole = userRoleDao.findByName(roleName);
-        if (userRole == null) {
-            userRole = new UserRole();
-            userRole.setName(roleName);
-            userRole.setGlobalRole(true);
-            userRole.setEnabled(true);
-            userRole = userRoleDao.save(userRole);
+        UserRole userRole = userRoleDao.findByNameAndGlobalRole(roleName,true);
+        if(null==userRole){
+            userRole= getUserRole(roleName);
         }
-        UserRoleAssignment userRoleAssignment = new UserRoleAssignment();
-        userRoleAssignment.setUserId(user.getId());
-        userRoleAssignment.setOrgUserId(orgUser.getId());
-        userRoleAssignment.setRoleId(userRole.getId());
-        userRoleAssignment.setOrgRefId(orgAgency.getId());
-        userRoleAssignment.setEnabled(true);
-        userRoleAssignment.setUnbound(true);
-        userRoleAssignmentDao.save(userRoleAssignment);
+        UserRoleAssignment userRoleAssignment = userRoleAssignmentDao.findByOrgUserIdAndRoleId(orgUser.getId(), userRole.getId());
+        if (userRoleAssignment == null) {
+            userRoleAssignment = new UserRoleAssignment();
+            userRoleAssignment.setUserId(user.getId());
+            userRoleAssignment.setOrgUserId(orgUser.getId());
+            userRoleAssignment.setRoleId(userRole.getId());
+            userRoleAssignment.setOrgRefId(orgAgency.getId());
+            userRoleAssignment.setEnabled(true);
+            userRoleAssignment.setUnbound(true);
+            userRoleAssignmentDao.save(userRoleAssignment);
+        }
+
     }
 
     private OrgUser saveOrgUser(UserDto userDto, User user, OrganizationReference orgAgency) {
-        OrgUser orgUser = new OrgUser();
-        orgUser.setUserId(user.getId());
-        orgUser.setOrgRefId(orgAgency.getId());
-        if (userDto.getDefaultAgency() != 0
-                && Objects.equals(userDto.getDefaultAgency(), userDto.getAgencyId())) {
-            orgUser.setDefaultOrg(true);
-        } else {
-            orgUser.setDefaultOrg(false);
+        OrgUser orgUser = orgUserDao.findByOrgRefIdAndUserId(orgAgency.getId(), user.getId());
+        if (orgUser == null) {
+            orgUser = new OrgUser();
+            orgUser.setUserId(user.getId());
+            orgUser.setOrgRefId(orgAgency.getId());
+            if (userDto.getDefaultAgency() != 0
+                    && Objects.equals(userDto.getDefaultAgency(), userDto.getAgencyId())) {
+                orgUser.setDefaultOrg(true);
+            } else {
+                orgUser.setDefaultOrg(false);
+            }
+            orgUser.setEnabled(true);
+            orgUser = orgUserDao.save(orgUser);
         }
-        orgUser.setEnabled(true);
-        orgUserDao.save(orgUser);
         return orgUser;
     }
 
@@ -265,6 +286,105 @@ public class UserSyncService {
         user.setEnabled(userDto.getUseFlg());
         user.setMemo(userDto.getMemo());
         return userDao.save(user);
+    }
+
+    /**
+     * 增量同步用户角色关联
+     * @param lastUpdateTime 最后同步时间
+     */
+    public void doUserRoleSync(Date lastUpdateTime) {
+        String sql = "select bu.userId,br.roleName from bus_userrole bu LEFT JOIN bus_role br on bu.roleId=br.roleId where bu.useFlg = 1 AND (bu.createdTime >= :deltatime OR bu.updatedTime >= :deltatime)";
+        Map<String, Object> map = new HashMap<>();
+        map.put("deltatime", lastUpdateTime);
+        //查询最后时间点后新增或修改的用户角色关系
+        List<UserRoleDto> roleList = jdbcTemplate.query(sql,map,new BeanPropertyRowMapper<>(UserRoleDto.class));
+        for (UserRoleDto userRoleDto : roleList) {
+            //查询出用户对应的机构或者供应商信息
+            String sql1 = "SELECT " +
+                    "agencyId,suplierId,userId,userPwd,trueName,mobile,useFlg," +
+                    "memo,creator,editor,createdTime,updatedTime,defaultAgency " +
+                    "FROM bus_usermaster WHERE userId=:userId";
+            RowMapper<UserDto> rowMapper = new BeanPropertyRowMapper<>(UserDto.class);
+            Map<String, Object> map1 = new HashMap<>();
+            map1.put("userId", userRoleDto.getUserId());
+            UserDto userDto = jdbcTemplate.queryForObject(sql1, map1, rowMapper);
+            //查询新表用户信息
+            User u=userDao.findByUsername(userRoleDto.getUserId());
+            //查询新表角色信息
+            UserRole userRole = userRoleDao.findByNameAndGlobalRole(userRoleDto.getRoleName(),true);
+            if(null==userRole){
+                userRole= getUserRole(userRoleDto.getRoleName());
+            }
+            try {
+                //2.机构账号创建机构关系
+                if (userDto.getAgencyId() != null) {
+                    //查询新表机构信息
+                    OrganizationReference angency= getOrganizationReference(userDto.getAgencyId());
+                    //查询新表用户机构信息
+                    OrgUser orgUser=orgUserDao.findByOrgRefIdAndUserId(angency.getId(),u.getId());
+                    UserRoleAssignment userRoleAssignment = userRoleAssignmentDao.findByOrgUserIdAndRoleId(orgUser.getId(), userRole.getId());
+                    saveUserRoleAssignment(userRole, orgUser, userRoleAssignment);
+                }
+                //3.供应商账号创建供应商关系
+                if (userDto.getSuplierId() != null) {
+                    //查询新表机构信息
+                    OrganizationReference angency= getOrgReference(userDto.getSuplierId());
+                    //查询新表用户机构信息
+                    OrgUser orgUser=orgUserDao.findByOrgRefIdAndUserId(angency.getId(),u.getId());
+                    UserRoleAssignment userRoleAssignment = userRoleAssignmentDao.findByOrgUserIdAndRoleId(orgUser.getId(), userRole.getId());
+                    saveUserRoleAssignment(userRole, orgUser, userRoleAssignment);
+                }
+            } catch (EmptyResultDataAccessException e) {
+                log.error("没有对应集团信息的用户:{}", userDto.getUserId());
+            }
+        }
+    }
+
+    private void saveUserRoleAssignment(UserRole userRole, OrgUser orgUser, UserRoleAssignment userRoleAssignment) {
+        if (userRoleAssignment == null) {
+            userRoleAssignment = new UserRoleAssignment();
+            userRoleAssignment.setUserId(orgUser.getUserId());
+            userRoleAssignment.setOrgUserId(orgUser.getId());
+            userRoleAssignment.setRoleId(userRole.getId());
+            userRoleAssignment.setOrgRefId(orgUser.getOrgRefId());
+            userRoleAssignment.setEnabled(true);
+            userRoleAssignment.setUnbound(true);
+            userRoleAssignmentDao.save(userRoleAssignment);
+        }
+    }
+
+    /**
+     * 同步角色信息
+     * @param lastUpdateTime 最后同步时间
+     */
+    public void doRoleSync(Date lastUpdateTime) {
+        String sql = "select roleName FROM bus_role WHERE useFlg = 1 AND (createdTime >= :deltatime OR updatedTime >= :deltatime)";
+        Map<String, Object> map = new HashMap<>();
+        map.put("deltatime", lastUpdateTime);
+        //查询新增的角色信息
+        List<String> roleNames = jdbcTemplate.queryForList(sql, map, String.class);
+        if (roleNames != null && !roleNames.isEmpty()) {
+            for (String roleName : roleNames) {
+                UserRole userRole = userRoleDao.findByNameAndGlobalRole(roleName,true);
+                //如果新库没有该角色信息，进行插入操作
+                if (userRole == null) {
+                    userRole = getUserRole(roleName);
+                }
+            }
+        }
+    }
+
+    /**
+     * 插入角色信息
+     * @param roleName 角色名
+     * @return 返回插入后带id的角色实体
+     */
+    private UserRole getUserRole(String roleName) {
+        UserRole userRole =new UserRole();
+            userRole.setName(roleName);
+            userRole.setGlobalRole(true);
+            userRole.setEnabled(true);
+            return userRoleDao.save(userRole);
     }
 
 

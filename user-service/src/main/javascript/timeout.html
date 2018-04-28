@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>微信登录倒计时</title>
+    <style>
+        #btn{
+            font-size: 14px;
+            width: 80px;
+            height: 25px;
+            line-height: 25px;
+            text-align: center;
+            background-color: #00aeef;
+            border: none;
+            color: #fff;
+            display:block;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <span>欢迎登陆佳沃斯系统，系统将在倒计时</span>
+    <span id="dd" style="font-size:12px;color:red;">18</span>
+    <span style="font-size:12px;">S</span>
+    <span>后进入</span><br/>
+    <buttton id="btn">
+        现在就进入
+    </buttton>
+<script type="text/javascript">
+    function run(){
+        var s = document.getElementById("dd");
+        if(s.innerHTML == 0){
+            window.location.href="CALLBACKURL";
+            return false;
+        }
+        s.innerHTML = s.innerHTML * 1 - 1;
+    }
+    window.setInterval("run();", 1000);
+    var btn = document.getElementById("btn");
+    btn.onclick = function(){
+        window.location.href="CALLBACKURL";
+    }
+
+
+</script>
+</body>
+</html>

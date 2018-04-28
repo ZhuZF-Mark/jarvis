@@ -1,6 +1,6 @@
 package com.jarvis.user.mapper;
 
-import com.jarvis.user.Dto.FunctionAccessDto;
+import com.jarvis.user.dto.FunctionAccessDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

@@ -21,17 +21,25 @@ public class UserDeltaImportJob {
     @Autowired
     private UserTaskTimeMapper userTaskTimeMapper;
 
-    @Scheduled(fixedDelay = 1000L * 60)
+    @Scheduled(fixedDelay = 1000L * 30)
     private void doDeltaImport() {
         Date lastUpdateTime = userTaskTimeMapper.findLastUpdateTime();
-        Date currentTime = new Date();
-        while (currentTime.getTime() - lastUpdateTime.getTime() >= 1000L * 60 * 5) {
+        try {
+            Date currentTime = new Date();
+//        while (currentTime.getTime() - lastUpdateTime.getTime() >= 1000L * 60 * 5) {
+            userTaskTimeMapper.updateLastUpdateTime(currentTime);
             userSyncService.doAgencySync(lastUpdateTime);
             userSyncService.doSupplierSync(lastUpdateTime);
             userSyncService.deltaImportOldDatasource(lastUpdateTime);
+            //同步角色信息
+            userSyncService.doRoleSync(lastUpdateTime);
+            //同步用户角色
+            userSyncService.doUserRoleSync(lastUpdateTime);
+        }catch (Exception e){
+            e.printStackTrace();
             userTaskTimeMapper.updateLastUpdateTime(lastUpdateTime);
-            lastUpdateTime = DateUtils.addMinutes(lastUpdateTime, 5);
+        }
         }
 
-    }
+//    }
 }

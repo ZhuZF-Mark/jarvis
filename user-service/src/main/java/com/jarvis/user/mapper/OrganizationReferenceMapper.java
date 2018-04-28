@@ -18,4 +18,17 @@ public interface OrganizationReferenceMapper {
      * @return 机构列表
      */
     List<OrganizationReference> findByOrgNameLike(@Param("orgName") String orgName);
+
+    /**
+     * 根据用户手机号和密码查询机构列表
+     * @param mobile
+     * @return
+     */
+    List<OrganizationReference> findByUserMobile(@Param("mobile") String mobile,@Param("password") String password);
+    /**
+     * 根据用户微信号查询机构列表
+     * @param unionId
+     * @return
+     */
+    List<OrganizationReference> findByWxUnionId(@Param("unionId") String unionId);
 }

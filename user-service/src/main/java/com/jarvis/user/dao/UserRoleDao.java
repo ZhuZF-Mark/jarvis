@@ -9,5 +9,5 @@ import java.util.List;
  * Created by ZZF on 2018/3/15.
  */
 public interface UserRoleDao extends JpaRepository<UserRole, Long> {
-    List<UserRole> findByOrgRefIdOrGlobalRole(Long orgRefId,Boolean globalRole);
+    List<UserRole> findByOrgRefIdOrGlobalRoleAndEnabled(Long orgRefId,Boolean globalRole,Boolean enabled);
 }

@@ -6,6 +6,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.test.context.jdbc.Sql;
 
+import java.util.List;
+
 /**
  * Created by jian on 18-3-9
  */
@@ -34,4 +36,6 @@ public interface UserDao extends JpaRepository<User, Long> {
      * 根据用户名查询
      */
     User findByUsernameAndEnabled(String username,Boolean enabled);
+
+    List<User> findByMobileAndPasswordAndEnabled(String username, String md5Password, boolean b);
 }

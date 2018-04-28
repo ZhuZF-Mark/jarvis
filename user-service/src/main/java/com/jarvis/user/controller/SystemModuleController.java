@@ -1,16 +1,11 @@
 package com.jarvis.user.controller;
 
-import com.jarvis.user.Dto.FunctionPointDto;
-import com.jarvis.user.Dto.ModuleFunctionDto;
-import com.jarvis.user.dao.FunctionAccessDao;
-import com.jarvis.user.entity.FunctionAccess;
-import com.jarvis.user.entity.FunctionPoint;
+import com.jarvis.user.dto.ModuleFunctionDto;
 import com.jarvis.user.mapper.SystemModuleMapper;
 import com.jarvis.user.requestform.RoleFunctionForm;
 import com.jarvis.user.service.SystemModuleService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
