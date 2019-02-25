@@ -7,9 +7,9 @@ spring:
     name: user-task
   datasource:
     driverClassName: com.mysql.jdbc.Driver
-    url: jdbc:mysql://47.94.92.140:3306/jws_user?useUnicode=true&characterEncoding=UTF-8
-    username: jarvis_admin
-    password: Quanli123
+    url: 
+    username: 
+    password: 
     testOnBorrow: true
     validationQuery: SELECT 1
   jpa:
@@ -21,10 +21,9 @@ user:
   task:
     userDatasource:
      driverClassName: com.mysql.jdbc.Driver
-     url: jdbc:mysql://47.94.92.140:3306/jarvis_prod?useUnicode=true&characterEncoding=UTF-8
-     username: jarvis_admin
-     password: Quanli123
-
+     url: 
+     username: 
+     password: 
 
 
 
