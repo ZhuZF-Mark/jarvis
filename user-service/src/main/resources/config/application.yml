@@ -19,8 +19,8 @@ spring:
     hibernate.ddl-auto: update
     show-sql: true
   redis:
-    host: 47.94.92.140
-    password: F1stForward.com
+    host: 
+    password: 
 mybatis:
   mapper-locations: mapper/*.xml
   type-aliases-package: com.jarvis.user.entity,com.jarvis.user.dto
